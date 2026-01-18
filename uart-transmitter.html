@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UART Text Transmitter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #00ff88;
+        }
+
+        .subtitle {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .control-panel {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #0f3460;
+            border-radius: 5px;
+            background: #0f3460;
+            color: #fff;
+            font-size: 16px;
+            font-family: monospace;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .settings-row > div {
+            flex: 1;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #0f3460;
+            border-radius: 5px;
+            background: #0f3460;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-start {
+            background: #00ff88;
+            color: #1a1a2e;
+        }
+
+        .btn-start:hover {
+            background: #00cc6f;
+        }
+
+        .btn-start:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .btn-stop {
+            background: #ff4444;
+            color: white;
+        }
+
+        .btn-stop:hover {
+            background: #cc0000;
+        }
+
+        .btn-stop:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .display-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            min-height: 300px;
+            position: relative;
+        }
+
+        .display-area.high {
+            background: #ffffff;
+        }
+
+        .display-area.low {
+            background: #000000;
+        }
+
+        .status-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .status-row {
+            margin-bottom: 5px;
+        }
+
+        .status-label {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .info-panel {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .info-panel h3 {
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+
+        .info-panel ul {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .error-display {
+            background: #ff4444;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            display: none;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .error-display.visible {
+            display: block;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="error-display" id="errorDisplay"></div>
+
+    <div class="container">
+        <h1>UART Text Transmitter</h1>
+        <p class="subtitle">Transmit text as flashing light using UART protocol</p>
+
+        <div class="control-panel">
+            <div class="input-group">
+                <label for="textInput">Text to Transmit:</label>
+                <textarea id="textInput" placeholder="Enter your message here...">Hello World!</textarea>
+            </div>
+
+            <div class="settings-row">
+                <div>
+                    <label for="baudRate">Baud Rate:</label>
+                    <select id="baudRate">
+                        <option value="1">1 bps (Very Slow)</option>
+                        <option value="5">5 bps (Slow)</option>
+                        <option value="10" selected>10 bps (Medium)</option>
+                        <option value="20">20 bps (Fast)</option>
+                        <option value="50">50 bps (Very Fast)</option>
+                        <option value="100">100 bps (Ultra Fast)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="uartFormat">UART Format:</label>
+                    <select id="uartFormat">
+                        <option value="8N1" selected>8N1 (8 data, No parity, 1 stop)</option>
+                        <option value="8N2">8N2 (8 data, No parity, 2 stop)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="startBtn" class="btn-start">Start Transmission</button>
+                <button id="stopBtn" class="btn-stop" disabled>Stop Transmission</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="display-area low" id="display">
+        <div class="status-overlay" id="statusOverlay">
+            <div class="status-row">
+                <span class="status-label">Status:</span> <span id="statusText">Idle</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Current Char:</span> <span id="currentChar">-</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Binary:</span> <span id="currentBinary">-</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Bit:</span> <span id="currentBit">-</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Progress:</span> <span id="progress">0/0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="info-panel">
+            <h3>How It Works:</h3>
+            <ul>
+                <li><strong>White screen</strong> = Logic HIGH (1)</li>
+                <li><strong>Black screen</strong> = Logic LOW (0)</li>
+                <li>Each character is transmitted using UART protocol:
+                    <ul>
+                        <li>1 START bit (LOW)</li>
+                        <li>8 DATA bits (LSB first)</li>
+                        <li>1 or 2 STOP bits (HIGH)</li>
+                    </ul>
+                </li>
+                <li>Baud rate controls the speed of bit transmission</li>
+                <li>Use a light sensor to receive the transmitted data!</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Debug logging utility
+        const debugLog = (message, data = null) => {
+            const timestamp = new Date().toISOString();
+            const logMessage = `[${timestamp}] ${message}`;
+            console.log(logMessage, data || '');
+
+            // Also log to error display for mobile debugging
+            const errorDisplay = document.getElementById('errorDisplay');
+            if (errorDisplay) {
+                const currentLog = errorDisplay.textContent;
+                errorDisplay.textContent = logMessage + (data ? ' ' + JSON.stringify(data) : '') + '\n' + currentLog;
+            }
+        };
+
+        // Show error in UI
+        const showError = (message, error = null) => {
+            console.error(message, error);
+            const errorDisplay = document.getElementById('errorDisplay');
+            if (errorDisplay) {
+                errorDisplay.textContent = `ERROR: ${message}\n${error ? error.stack || error.message || error : ''}`;
+                errorDisplay.classList.add('visible');
+            }
+        };
+
+        class UARTTransmitter {
+            constructor() {
+                debugLog('UARTTransmitter constructor called');
+
+                this.isTransmitting = false;
+                this.currentTimeout = null;
+                this.bitStream = [];
+                this.currentBitIndex = 0;
+                this.text = '';
+                this.baudRate = 10;
+                this.stopBits = 1;
+                this.wakeLock = null;
+
+                try {
+                    // Get DOM elements with error checking
+                    this.display = document.getElementById('display');
+                    this.statusText = document.getElementById('statusText');
+                    this.currentChar = document.getElementById('currentChar');
+                    this.currentBinary = document.getElementById('currentBinary');
+                    this.currentBit = document.getElementById('currentBit');
+                    this.progress = document.getElementById('progress');
+
+                    // Verify all elements exist
+                    if (!this.display) throw new Error('display element not found');
+                    if (!this.statusText) throw new Error('statusText element not found');
+                    if (!this.currentChar) throw new Error('currentChar element not found');
+                    if (!this.currentBinary) throw new Error('currentBinary element not found');
+                    if (!this.currentBit) throw new Error('currentBit element not found');
+                    if (!this.progress) throw new Error('progress element not found');
+
+                    debugLog('All DOM elements found successfully');
+
+                    this.setupEventListeners();
+                    debugLog('Event listeners set up successfully');
+                } catch (error) {
+                    showError('Failed to initialize UARTTransmitter', error);
+                    throw error;
+                }
+            }
+
+            setupEventListeners() {
+                const startBtn = document.getElementById('startBtn');
+                const stopBtn = document.getElementById('stopBtn');
+
+                if (!startBtn) throw new Error('startBtn not found');
+                if (!stopBtn) throw new Error('stopBtn not found');
+
+                // Use both click and touchstart for better iOS support
+                startBtn.addEventListener('click', (e) => {
+                    debugLog('Start button clicked');
+                    e.preventDefault();
+                    this.start();
+                });
+
+                startBtn.addEventListener('touchstart', (e) => {
+                    debugLog('Start button touched');
+                }, { passive: true });
+
+                stopBtn.addEventListener('click', (e) => {
+                    debugLog('Stop button clicked');
+                    e.preventDefault();
+                    this.stop();
+                });
+
+                stopBtn.addEventListener('touchstart', (e) => {
+                    debugLog('Stop button touched');
+                }, { passive: true });
+            }
+
+            async requestWakeLock() {
+                // Prevent screen from sleeping during transmission (iOS Safari doesn't support this yet)
+                try {
+                    if ('wakeLock' in navigator) {
+                        this.wakeLock = await navigator.wakeLock.request('screen');
+                        debugLog('Wake lock acquired');
+                    } else {
+                        debugLog('Wake lock not supported');
+                    }
+                } catch (error) {
+                    debugLog('Wake lock request failed', error.message);
+                }
+            }
+
+            releaseWakeLock() {
+                if (this.wakeLock) {
+                    this.wakeLock.release();
+                    this.wakeLock = null;
+                    debugLog('Wake lock released');
+                }
+            }
+
+            textToBinary(text) {
+                debugLog('Converting text to binary', { length: text.length });
+                const bits = [];
+
+                for (let i = 0; i < text.length; i++) {
+                    const charCode = text.charCodeAt(i);
+                    const frame = this.createUARTFrame(charCode);
+                    bits.push(...frame);
+                }
+
+                debugLog('Conversion complete', { totalBits: bits.length });
+                return bits;
+            }
+
+            createUARTFrame(byte) {
+                const frame = [];
+
+                // Start bit (always 0/LOW)
+                frame.push(0);
+
+                // Data bits (8 bits, LSB first)
+                for (let i = 0; i < 8; i++) {
+                    frame.push((byte >> i) & 1);
+                }
+
+                // Stop bits (always 1/HIGH)
+                for (let i = 0; i < this.stopBits; i++) {
+                    frame.push(1);
+                }
+
+                return frame;
+            }
+
+            async start() {
+                debugLog('Start method called');
+
+                try {
+                    const textInput = document.getElementById('textInput').value;
+                    const baudRate = parseInt(document.getElementById('baudRate').value);
+                    const uartFormat = document.getElementById('uartFormat').value;
+
+                    debugLog('Input values', { textLength: textInput.length, baudRate, uartFormat });
+
+                    if (!textInput) {
+                        alert('Please enter some text to transmit!');
+                        return;
+                    }
+
+                    this.text = textInput;
+                    this.baudRate = baudRate;
+                    this.stopBits = uartFormat === '8N2' ? 2 : 1;
+                    this.bitStream = this.textToBinary(textInput);
+                    this.currentBitIndex = 0;
+                    this.isTransmitting = true;
+
+                    // Request wake lock
+                    await this.requestWakeLock();
+
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('textInput').disabled = true;
+                    document.getElementById('baudRate').disabled = true;
+                    document.getElementById('uartFormat').disabled = true;
+
+                    this.statusText.textContent = 'Transmitting...';
+
+                    debugLog('Starting transmission', {
+                        totalBits: this.bitStream.length,
+                        baudRate: this.baudRate
+                    });
+
+                    this.transmitNextBit();
+                } catch (error) {
+                    showError('Failed to start transmission', error);
+                }
+            }
+
+            stop() {
+                debugLog('Stop method called');
+
+                try {
+                    this.isTransmitting = false;
+                    if (this.currentTimeout) {
+                        clearTimeout(this.currentTimeout);
+                        this.currentTimeout = null;
+                    }
+
+                    this.releaseWakeLock();
+
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('textInput').disabled = false;
+                    document.getElementById('baudRate').disabled = false;
+                    document.getElementById('uartFormat').disabled = false;
+
+                    this.display.className = 'display-area low';
+                    this.statusText.textContent = 'Stopped';
+                    this.currentChar.textContent = '-';
+                    this.currentBinary.textContent = '-';
+                    this.currentBit.textContent = '-';
+                } catch (error) {
+                    showError('Failed to stop transmission', error);
+                }
+            }
+
+            transmitNextBit() {
+                try {
+                    if (!this.isTransmitting || this.currentBitIndex >= this.bitStream.length) {
+                        if (this.isTransmitting) {
+                            this.complete();
+                        }
+                        return;
+                    }
+
+                    const bit = this.bitStream[this.currentBitIndex];
+                    const bitDuration = 1000 / this.baudRate; // milliseconds per bit
+
+                    // Set display based on bit value
+                    if (bit === 1) {
+                        this.display.className = 'display-area high';
+                    } else {
+                        this.display.className = 'display-area low';
+                    }
+
+                    // Update status display
+                    this.updateStatus();
+
+                    this.currentBitIndex++;
+                    this.currentTimeout = setTimeout(() => this.transmitNextBit(), bitDuration);
+                } catch (error) {
+                    showError('Error during transmission', error);
+                    this.stop();
+                }
+            }
+
+            updateStatus() {
+                try {
+                    const bitsPerFrame = 10 + (this.stopBits - 1); // 1 start + 8 data + stop bits
+                    const charIndex = Math.floor(this.currentBitIndex / bitsPerFrame);
+                    const bitInFrame = this.currentBitIndex % bitsPerFrame;
+
+                    if (charIndex < this.text.length) {
+                        const char = this.text[charIndex];
+                        const charCode = char.charCodeAt(0);
+
+                        this.currentChar.textContent = `'${char}' (0x${charCode.toString(16).toUpperCase().padStart(2, '0')})`;
+
+                        const binary = charCode.toString(2).padStart(8, '0');
+                        this.currentBinary.textContent = binary;
+
+                        let bitLabel = '';
+                        if (bitInFrame === 0) {
+                            bitLabel = 'START';
+                        } else if (bitInFrame >= 1 && bitInFrame <= 8) {
+                            bitLabel = `D${bitInFrame - 1}`;
+                        } else {
+                            bitLabel = `STOP${bitInFrame - 8}`;
+                        }
+
+                        const currentBit = this.bitStream[this.currentBitIndex];
+                        this.currentBit.textContent = `${bitLabel} (${currentBit})`;
+                    }
+
+                    this.progress.textContent = `${this.currentBitIndex}/${this.bitStream.length} bits | ${charIndex}/${this.text.length} chars`;
+                } catch (error) {
+                    showError('Error updating status', error);
+                }
+            }
+
+            complete() {
+                debugLog('Transmission complete');
+
+                try {
+                    this.isTransmitting = false;
+                    this.releaseWakeLock();
+
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('textInput').disabled = false;
+                    document.getElementById('baudRate').disabled = false;
+                    document.getElementById('uartFormat').disabled = false;
+
+                    this.display.className = 'display-area low';
+                    this.statusText.textContent = 'Transmission Complete!';
+                    this.currentChar.textContent = '-';
+                    this.currentBinary.textContent = '-';
+                    this.currentBit.textContent = '-';
+                } catch (error) {
+                    showError('Error completing transmission', error);
+                }
+            }
+        }
+
+        // CRITICAL FIX: Wait for DOM to be fully loaded before initializing
+        // This is the main fix for iOS Safari issues
+        if (document.readyState === 'loading') {
+            debugLog('Waiting for DOMContentLoaded...');
+            document.addEventListener('DOMContentLoaded', () => {
+                debugLog('DOMContentLoaded fired, initializing transmitter');
+                try {
+                    window.transmitter = new UARTTransmitter();
+                    debugLog('Transmitter initialized successfully');
+                } catch (error) {
+                    showError('Failed to create transmitter', error);
+                }
+            });
+        } else {
+            // DOM already loaded
+            debugLog('DOM already loaded, initializing transmitter immediately');
+            try {
+                window.transmitter = new UARTTransmitter();
+                debugLog('Transmitter initialized successfully');
+            } catch (error) {
+                showError('Failed to create transmitter', error);
+            }
+        }
+    </script>
+</body>
+</html>
